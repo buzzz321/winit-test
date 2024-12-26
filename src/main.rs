@@ -16,8 +16,8 @@ impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         self.window = Some(
             event_loop
-                .create_window(Window::default_attributes())
-                .unwrap(),
+            .create_window(Window::default_attributes())
+            .unwrap(),
         );
         println!("resumed -> Created new window!!");
     }
@@ -31,8 +31,8 @@ impl ApplicationHandler for App {
             winit::event::StartCause::Init => {
                 self.window = Some(
                     event_loop
-                        .create_window(Window::default_attributes())
-                        .unwrap(),
+                    .create_window(Window::default_attributes())
+                    .unwrap(),
                 );
                 println!("new_events -> Created new window!!");
                 executor::block_on(self.init_wgpu());
@@ -60,7 +60,7 @@ impl ApplicationHandler for App {
                         repeat: false,
                         ..
                     },
-                ..
+                    ..
             } => {
                 println!("Escape key pressed, quitting application");
                 event_loop.exit();
@@ -79,15 +79,19 @@ impl App {
         let tmp = self.window.as_ref().unwrap();
         let size = tmp.inner_size();
 
+        //To create a gpu instance we need to set some options for it
+        //Like here we use deafult backend and no special flags ( flags are for validation )
         let instance_descriptor = wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
         };
+        // Lets create a new instance to the wgpu struct, mainly used Adapter (which card to use)
+        // and surface (handle to the window to write to)
         let instance = wgpu::Instance::new(instance_descriptor);
         let surface = instance
             .create_surface(self.window.as_ref().unwrap())
             .unwrap();
-         let adapter_descriptor = wgpu::RequestAdapterOptionsBase {
+        let adapter_descriptor = wgpu::RequestAdapterOptionsBase {
             power_preference: wgpu::PowerPreference::default(),
             compatible_surface: Some(&surface),
             force_fallback_adapter: false,
@@ -101,7 +105,7 @@ impl App {
             memory_hints: wgpu::MemoryHints::Performance,
             label: Some("Device"),
         };
-                let (device, queue) = adapter
+        let (device, queue) = adapter
             .request_device(&device_descriptor, None)
             .await.unwrap();
 
@@ -128,6 +132,12 @@ impl App {
     }
 }
 fn main() {
+    if cfg!(debug_assertions) {
+        println!("Debugging enabled");
+    } else {
+        println!("Debugging disabled");
+    }
+
     let event_loop = EventLoop::new().expect("Couldnt create event loop");
     event_loop.set_control_flow(ControlFlow::Poll);
 
