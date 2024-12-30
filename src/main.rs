@@ -7,6 +7,15 @@ use winit::{
     window::Window,
 };
 
+#[derive(Debug)]
+struct WebGpu<'a> {
+    surface: wgpu::Surface<'a>,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    config: wgpu::SurfaceConfiguration,
+    size: winit::dpi::PhysicalSize<u32>,
+}
+
 #[derive(Default, Debug)]
 struct App {
     window: Option<Window>,
@@ -131,6 +140,79 @@ impl App {
         surface.configure(&device, &config);
     }
 }
+
+impl<'a> WebGpu<'a> {
+  async fn new(window: &'a Window) -> WebGpu<'a> {
+        let size = window.inner_size();
+
+        //To create a gpu instance we need to set some options for it
+        //Like here we use deafult backend and no special flags ( flags are for validation )
+        let instance_descriptor = wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            ..Default::default()
+        };
+        // Lets create a new instance to the wgpu struct, mainly used Adapter (which card to use)
+        // and surface (handle to the window to write to)
+        let instance = wgpu::Instance::new(instance_descriptor);
+        // Connect the surface to a window handle, the surface will be used to paint on later.
+        let surface = instance
+            .create_surface(window)
+            .unwrap();
+        // fill in a adapter descriptor connected to the surface so that we can get a gfx card to
+        // use.
+        let adapter_descriptor = wgpu::RequestAdapterOptionsBase {
+            power_preference: wgpu::PowerPreference::default(),
+            compatible_surface: Some(&surface),
+            force_fallback_adapter: false,
+        };
+        // Get the adapter that fufills the descriptor if possible.
+        let adapter = instance.request_adapter(&adapter_descriptor)
+            .await.unwrap();
+        // Device descriptor needs parameters filled in so it can be requested.
+        let device_descriptor = wgpu::DeviceDescriptor {
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::default(),
+            memory_hints: wgpu::MemoryHints::Performance,
+            label: Some("Device"),
+        };
+        // Get a device== gpu and a command queue.
+        let (device, queue) = adapter
+            .request_device(&device_descriptor, None)
+            .await.unwrap();
+
+
+        let surface_capabilities = surface.get_capabilities(&adapter);
+        // Find a surface with the capabilites we need, in this case srgb is the only req we have.
+        let surface_format = surface_capabilities
+            .formats
+            .iter()
+            .copied()
+            .filter(|f | f.is_srgb())
+            .next()
+            .unwrap_or(surface_capabilities.formats[0]);
+        // create a config for our surface.
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface_format,
+            width: size.width,
+            height: size.height,
+            present_mode: surface_capabilities.present_modes[0],
+            alpha_mode: surface_capabilities.alpha_modes[0],
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2
+        };
+        surface.configure(&device, &config);
+
+    Self {
+        surface,
+        device,
+        queue,
+        config,
+        size,
+    }
+  }
+}
+
 fn main() {
     if cfg!(debug_assertions) {
         println!("Debugging enabled");
